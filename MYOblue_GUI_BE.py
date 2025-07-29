@@ -503,6 +503,7 @@ class GUI(QtWidgets.QMainWindow):
         for i in range(4):
             self.NumberBE[i].setValue(0)
             self.NumberBE_PerTime[i].setValue(0)
+            self.FlagBE[i] = 0
 
     # Refresh screen
     def refreshForAction(self):
@@ -638,7 +639,6 @@ class GUI(QtWidgets.QMainWindow):
 
         while self.sensorSelectedActionBox.count() < int(self.sensorsNumber.value()): 
             self.sensorSelectedActionBox.addItem(str(self.sensorSelectedActionBox.count() + 1))
-
             
         while self.sensorSelectedActionBox.count() > int(self.sensorsNumber.value()): 
             self.sensorSelectedActionBox.removeItem(self.sensorSelectedActionBox.count()-1)
@@ -684,14 +684,28 @@ class GUI(QtWidgets.QMainWindow):
                     self.DataIntegral[i][j] = ((integrate.simpson(abs(Data[i][j-int(self.integrationInterval.value()*1000/2):j]), x=None, dx=self.dt[i])))
                     self.DataIntegral[i][j] = self.MovingAverage_Integral.movingAverage(i, self.DataIntegral[i][j])
                     
-                    if (self.FlagBE[i] == 0) & (self.DataIntegral[i][j] > self.TriggerValue[i].value()):
+                    if (self.FlagBE[i] == 0) & (self.DataIntegral[i][j] >= self.TriggerValue[i].value()):
                         self.FlagBE[i] = 1
                         self.TimeStartBE[i] = Time[i][j]
-                    if (self.FlagBE[i] == 1) & (self.DataIntegral[i][j] < self.TriggerValue[i].value()):
-                        self.FlagBE[i] = 0
-                        if ((Time[i][j] - self.TimeStartBE[i]) > self.StartTimeValue[i].value()) & ((Time[i][j] - self.TimeStartBE[i]) < self.EndTimeValue[i].value()):
-                            self.NumberBE[i].setValue(self.NumberBE[i].value()+1)
-                            self.NumberBE_PerTime[i].setValue(self.NumberBE[i].value()/Time[i][j]*60*60)
+                    
+                    if (self.FlagBE[i] == 1) & ((Time[i][j] - self.TimeStartBE[i]) > self.StartTimeValue[i].value()):
+                        self.FlagBE[i] = 2
+                        self.NumberBE[i].setValue(self.NumberBE[i].value() + 1)
+                        self.NumberBE_PerTime[i].setValue(self.NumberBE[i].value()/Time[i][j]*60*60)
+                   
+                    if (self.DataIntegral[i][j] < self.TriggerValue[i].value()):
+                        if (self.FlagBE[i] == 1):
+                            self.FlagBE[i] = 0  
+                        if (self.FlagBE[i] == 2):
+                            self.FlagBE[i] = 3
+                            self.TimeStartBE[i] = Time[i][j]  
+                    
+                    if (self.FlagBE[i] == 3) & (self.DataIntegral[i][j] >= self.TriggerValue[i].value()): 
+                        self.TimeStartBE[i] = Time[i][j]       
+                    
+                    if (self.FlagBE[i] == 3) & ((Time[i][j] - self.TimeStartBE[i]) > self.EndTimeValue[i].value()):
+                        self.FlagBE[i] = 0  
+                        
                 
                 if  self.IntegralSignalAction.isChecked(): self.pi[i].setData(y=self.DataIntegral[i], x=Time[i])
                 else: self.pi[i].clear()
