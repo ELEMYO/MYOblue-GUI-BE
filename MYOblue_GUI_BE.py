@@ -2,6 +2,7 @@
 # 2025-07-15 by ELEMYO (https://github.com/ELEMYO)
 # 
 # Changelog:
+#     2025-08-11 - improved functions for bruxism analysis
 #     2025-07-15 - added functions for bruxism analysis
 #     2022-04-22 - improved user interface
 #     2021-10-04 - serial port connection stability improved
@@ -64,7 +65,7 @@ class GUI(QtWidgets.QMainWindow):
     # Custom constructor 
     def initUI(self): 
         # Values        
-        self.delay = 0.21 # Graphics update delay
+        self.delay = 0.3 # Graphics update delay
         self.setWindowTitle("ELEMYO MYOblue GUI v1.1.0")
         self.setWindowIcon(QtGui.QIcon('img/icon.png'))
         
@@ -75,7 +76,7 @@ class GUI(QtWidgets.QMainWindow):
         self.passHighFrec = 250 # High frequency for band-pass filter
         
         self.timeWidth = 10 # Plot window length in seconds
-        self.dataWidth = int((self.timeWidth + 10)*self.fs) # Maximum count of plotting data points (40 seconds window)
+        self.dataWidth = int((self.timeWidth+2)*self.fs) # Maximum count of plotting data points (20 seconds window)
         self.Data = np.zeros((4, self.dataWidth)) # Raw data matrix, first index - sensor number, second index - sensor data 
         self.DataEnvelope = np.zeros((4, self.dataWidth)) # Envelope of row data, first index - sensor number, second index - sensor data
         self.DataIntegral = np.zeros((4, self.dataWidth))
@@ -112,7 +113,9 @@ class GUI(QtWidgets.QMainWindow):
         
         # Accessory variables for BE mask
         self.TimeStartBE = [0]*4
+        self.OverallTimeStartBE = [0]*4
         self.FlagBE = [0]*4
+        self.BA = [0]*4
 
         # Menu panel
         self.liveFromSerialAction = QtWidgets.QAction(QtGui.QIcon('img/play.png'), 'Start/Stop live from serial ', self)
@@ -261,8 +264,8 @@ class GUI(QtWidgets.QMainWindow):
             self.pe.append(self.pw[i].plot())
             self.pi.append(self.pw[i].plot())
             self.p[i].setPen(color=(100, 255, 255), width=0.8)
-            self.pe[i].setPen(color=(255, 0, 0), width=1)
-            self.pi[i].setPen(color=(0, 255, 0), width=2)
+            self.pe[i].setPen(color=(255, 0, 0), width=0.8)
+            self.pi[i].setPen(color=(0, 255, 0), width=0.8)
             # self.pw[i].getAxis('bottom').setStyle(showValues=False)
         # self.pw[3].getAxis('bottom').setStyle(showValues=True)
         
@@ -313,12 +316,19 @@ class GUI(QtWidgets.QMainWindow):
         self.StartTimeLabel = []
         self.NumberBE_Lable = []
         self.NumberBE_PerTime_Lable = []
+        self.BAo_Lable =[]
+        self.BAo = []
+        self.BE_Overall_Time_Lable = []
+        
+        self.TriggerLabel_2  = []
+        self.TriggerValue_2  = []
         
         self.StartTimeValue  = []
         self.EndTimeLabel = []
         self.EndTimeValue  = []
         self.NumberBE = []
         self.NumberBE_PerTime = []
+        self.BE_Overall_Time =[]
         
         for i in range(4):
             self.TriggerLabel.append(QtWidgets.QLabel("Trigger value:"))
@@ -326,17 +336,28 @@ class GUI(QtWidgets.QMainWindow):
             self.EndTimeLabel.append(QtWidgets.QLabel("Stop timer (s):"))
             self.NumberBE_Lable.append(QtWidgets.QLabel("Number of BE:"))
             self.NumberBE_PerTime_Lable.append(QtWidgets.QLabel("BE per hour:"))
+            self.TriggerLabel_2.append(QtWidgets.QLabel("Time_i trigger:"))
+            self.BE_Overall_Time_Lable.append(QtWidgets.QLabel("Time_i (s):"))
+            self.BAo_Lable.append(QtWidgets.QLabel("BAo (mkV/s):"))
             
             self.TriggerLabel[i].setStyleSheet("background-color: transparent; font-weight: bold;")
             self.StartTimeLabel[i].setStyleSheet("background-color: transparent; font-weight: bold;")
             self.EndTimeLabel[i].setStyleSheet("background-color: transparent; font-weight: bold;")
             self.NumberBE_Lable[i].setStyleSheet("background-color: transparent; font-weight: bold;")
             self.NumberBE_PerTime_Lable[i].setStyleSheet("background-color: transparent; font-weight: bold;")
+            self.TriggerLabel_2[i].setStyleSheet("background-color: transparent; font-weight: bold;")
+            self.BE_Overall_Time_Lable[i].setStyleSheet("background-color: transparent; font-weight: bold;")
+            self.BAo_Lable[i].setStyleSheet("background-color: transparent; font-weight: bold;")
             
             self.TriggerValue.append(QtWidgets.QSpinBox())
             self.TriggerValue[i].setSingleStep(1)
             self.TriggerValue[i].setRange(0, 2500)
-            self.TriggerValue[i].setValue(100)
+            self.TriggerValue[i].setValue(1000)
+                        
+            self.TriggerValue_2.append(QtWidgets.QSpinBox())
+            self.TriggerValue_2[i].setSingleStep(1)
+            self.TriggerValue_2[i].setRange(0, 2500)
+            self.TriggerValue_2[i].setValue(1000)
             
             self.StartTimeValue.append(QtWidgets.QDoubleSpinBox())
             self.StartTimeValue[i].setSingleStep(0.1)
@@ -355,8 +376,18 @@ class GUI(QtWidgets.QMainWindow):
             
             self.NumberBE_PerTime.append(QtWidgets.QDoubleSpinBox())
             self.NumberBE_PerTime[i].setSingleStep(1)
-            self.NumberBE_PerTime[i].setRange(0, 10000)
+            self.NumberBE_PerTime[i].setRange(0, 1000000)
             self.NumberBE_PerTime[i].setValue(0)
+            
+            self.BE_Overall_Time.append(QtWidgets.QDoubleSpinBox())
+            self.BE_Overall_Time[i].setSingleStep(1)
+            self.BE_Overall_Time[i].setRange(0, 1000000000)
+            self.BE_Overall_Time[i].setValue(0)
+            
+            self.BAo.append(QtWidgets.QDoubleSpinBox())
+            self.BAo[i].setSingleStep(1)
+            self.BAo[i].setRange(0, 10000000000)
+            self.BAo[i].setValue(0)
         
         # Main widget
         centralWidget = QtWidgets.QWidget()
@@ -392,7 +423,13 @@ class GUI(QtWidgets.QMainWindow):
             plotLayout[i].addWidget(self.NumberBE_Lable[i], 4, 49) 
             plotLayout[i].addWidget(self.NumberBE[i], 4, 50) 
             plotLayout[i].addWidget(self.NumberBE_PerTime_Lable[i], 5, 49) 
-            plotLayout[i].addWidget(self.NumberBE_PerTime[i], 5, 50) 
+            plotLayout[i].addWidget(self.NumberBE_PerTime[i], 5, 50)
+            plotLayout[i].addWidget(self.BAo_Lable[i], 6, 49) 
+            plotLayout[i].addWidget(self.BAo[i], 6, 50) 
+            plotLayout[i].addWidget(self.TriggerLabel_2[i], 7, 49) 
+            plotLayout[i].addWidget(self.TriggerValue_2[i], 7, 50) 
+            plotLayout[i].addWidget(self.BE_Overall_Time_Lable[i], 8, 49) 
+            plotLayout[i].addWidget(self.BE_Overall_Time[i], 8, 50) 
             plotLayout[i].setContentsMargins(0, 0, 0, 0)    
             
             self.row.append(QtWidgets.QWidget())
@@ -503,7 +540,10 @@ class GUI(QtWidgets.QMainWindow):
         for i in range(4):
             self.NumberBE[i].setValue(0)
             self.NumberBE_PerTime[i].setValue(0)
+            self.BE_Overall_Time[i].setValue(0)
             self.FlagBE[i] = 0
+            self.BA[i] = 0
+            self.BAo[i].setValue(0)
 
     # Refresh screen
     def refreshForAction(self):
@@ -647,7 +687,7 @@ class GUI(QtWidgets.QMainWindow):
         if (self.PlaybackAction.isChecked() and self.loadFileName != '') or (self.liveFromSerialAction.isChecked()):
             Data = np.zeros((4, self.dataWidth))
             Time = np.zeros((4, self.dataWidth))
-            for i in range(4):
+            for i in range(2):
                 Data[i] = np.concatenate((self.Data[i][self.l[i]: self.dataWidth], self.Data[i][0: self.l[i]]))
                 Time[i] = np.concatenate((self.Time[i][self.l[i]: self.dataWidth], self.Time[i][0: self.l[i]]))
             
@@ -684,6 +724,13 @@ class GUI(QtWidgets.QMainWindow):
                     self.DataIntegral[i][j] = ((integrate.simpson(abs(Data[i][j-int(self.integrationInterval.value()*1000/2):j]), x=None, dx=self.dt[i])))
                     self.DataIntegral[i][j] = self.MovingAverage_Integral.movingAverage(i, self.DataIntegral[i][j])
                     
+                    if ((self.OverallTimeStartBE[i] == 0) & (self.DataIntegral[i][j] >= self.TriggerValue_2[i].value())):
+                        self.OverallTimeStartBE[i] = time.perf_counter()
+                        
+                    if ((self.OverallTimeStartBE[i] > 0) & (self.DataIntegral[i][j] < self.TriggerValue_2[i].value())):
+                        self.BE_Overall_Time[i].setValue(self.BE_Overall_Time[i].value() + time.perf_counter() - self.OverallTimeStartBE[i])
+                        self.OverallTimeStartBE[i] = 0                  
+                    
                     if (self.FlagBE[i] == 0) & (self.DataIntegral[i][j] >= self.TriggerValue[i].value()):
                         self.FlagBE[i] = 1
                         self.TimeStartBE[i] = Time[i][j]
@@ -692,6 +739,10 @@ class GUI(QtWidgets.QMainWindow):
                         self.FlagBE[i] = 2
                         self.NumberBE[i].setValue(self.NumberBE[i].value() + 1)
                         self.NumberBE_PerTime[i].setValue(self.NumberBE[i].value()/Time[i][j]*60*60)
+                        
+                    if (self.FlagBE[i] == 2):
+                         self.BA[i] += 0.5*(self.DataIntegral[i][j] + self.DataIntegral[i][j-1])*self.dt[i]
+                         self.BAo[i].setValue(self.BA[i]/self.Time[i][self.l[i] - 1])
                    
                     if (self.DataIntegral[i][j] < self.TriggerValue[i].value()):
                         if (self.FlagBE[i] == 1):
@@ -709,9 +760,15 @@ class GUI(QtWidgets.QMainWindow):
                 
                 if  self.IntegralSignalAction.isChecked(): self.pi[i].setData(y=self.DataIntegral[i], x=Time[i])
                 else: self.pi[i].clear()
+                
                     
-                # Plot histogram
-                self.pb[i].setOpts(height=2*self.DataEnvelope[i][-1])
+                # # Plot histogram
+                # self.pb[i].setOpts(height=2*self.DataEnvelope[i][-1])
+                
+            if (self.dataRecordingAction.isChecked()):
+                for i in range(max(self.ms_len)):
+                    sensors_data = str(round(Time[0][self.dataWidth + i - int((1)*self.fs)], 3)) + ' ' +  str(round(Data[0][self.dataWidth + i - int((1)*self.fs)])) + ' ' + str(round(Data[1][self.dataWidth + i - int((1)*self.fs)])) + ' ' + str(round(Data[2][self.dataWidth + i - int((1)*self.fs)])) + ' ' + str(round(Data[3][self.dataWidth - int((1)*self.fs)])) +'\n'
+                    self.recordingFile_TXT.write(sensors_data)
 
             for i in range( int(self.sensorsNumber.value()), 4):
                 self.p[i].clear()
@@ -735,12 +792,12 @@ class GUI(QtWidgets.QMainWindow):
                 self.pe[i].clear()
                 self.pi[i].clear()
                 self.pb[i].setOpts(height=0)
-            self.pFFT.clear()
+            self.pFFT.clear()   
 
     # Read data from File   
     def readFromFile(self): 
         j = 0
-        while j < 5:
+        for j in range(10):
             j += 1
 
             if ( self.sliderpos > self.loadDataLen - 2):
@@ -761,7 +818,7 @@ class GUI(QtWidgets.QMainWindow):
                     
             if MSG_NUM - self.MSG_NUM_0[sensorNum] >= 0:
                 self.MSG_NUM[sensorNum] += MSG_NUM - self.MSG_NUM_0[sensorNum]
-                self.Time[sensorNum][self.l[sensorNum]] += self.dt[sensorNum]*119*(MSG_NUM - self.MSG_NUM_0[sensorNum] - 1)
+                self.Time[sensorNum][self.l[sensorNum] - 1] += self.dt[sensorNum]*119*(MSG_NUM - self.MSG_NUM_0[sensorNum] - 1)
                 self.MSG_NUM_0[sensorNum] = MSG_NUM
                 MSG_NUM = self.MSG_NUM[sensorNum]
             else:
@@ -785,7 +842,7 @@ class GUI(QtWidgets.QMainWindow):
                 self.refresh()
                 self.l  = temp
                 for i in range(0, 4, 1):
-                    self.Time[i][self.l[i]-1] = self.sliderpos/self.fs*119
+                    self.Time[i][self.l[i]-1] = self.sliderpos*self.dt[i]*119/2
             
             self.sliderpos += 1
             self.slider.setValue(int(self.sliderpos/self.loadDataLen*100))
@@ -825,7 +882,7 @@ class GUI(QtWidgets.QMainWindow):
                             
                     if MSG_NUM - self.MSG_NUM_0[sensorNum] > 0:
                         self.MSG_NUM[sensorNum] += MSG_NUM - self.MSG_NUM_0[sensorNum]
-                        self.Time[sensorNum][self.l[sensorNum]] += self.dt[sensorNum]*119*(MSG_NUM - self.MSG_NUM_0[sensorNum] - 1)
+                        self.Time[sensorNum][self.l[sensorNum]-1] += self.dt[sensorNum]*119*(MSG_NUM - self.MSG_NUM_0[sensorNum] - 1)
                         self.MSG_NUM_0[sensorNum] = MSG_NUM
                         MSG_NUM = self.MSG_NUM[sensorNum]
                     else:
@@ -849,6 +906,12 @@ class GUI(QtWidgets.QMainWindow):
                         for i in range(msg_i+8, msg_i + 246, 2):
                             if ( self.l[sensorNum] == self.dataWidth):
                                 self.l[sensorNum] = 0 
+                                if (self.dataRecordingAction.isChecked()):
+                                    self.recordingFile_BIN.close()
+                                    self.recordingFile_TXT.close()
+                                    self.recordingFile_BIN = open(self.recordingFileName_BIN, 'ab')
+                                    self.recordingFile_TXT = open(self.recordingFileName_TXT, "a")
+                                    
                                 
                             self.Data[sensorNum][self.l[sensorNum]]  = ((int(msg[i] | msg[i+1] << 8) - 8192)/16384.0*2.49)*2000
                             if ( self.l[sensorNum] > 0):
@@ -874,12 +937,6 @@ class GUI(QtWidgets.QMainWindow):
                         
                     if (self.dataRecordingAction.isChecked()):
                         self.recordingFile_BIN.write(msg[msg_i+2:msg_i+246])
-                        
-                        sensors_data = str(sensorNum)+' '+str(MSG_NUM)+" " + str(self.VDD[int(msg[msg_i+2])-1])+' '
-                        for i in range(msg_i+8, msg_i+246, 2):
-                            sensors_data = sensors_data + str(int(msg[i] | msg[i+1] << 8))+' '
-                        sensors_data = sensors_data + '\n'
-                        self.recordingFile_TXT.write(sensors_data)
     
     # Butterworth bandpass filter
     def butter_bandpass_filter(self, data, lowcut, highcut, fs, order=4):
