@@ -2,6 +2,7 @@
 # 2025-07-15 by ELEMYO (https://github.com/ELEMYO)
 # 
 # Changelog:
+#     2025-08-13 - improved functions for bruxism analysis
 #     2025-08-11 - improved functions for bruxism analysis
 #     2025-07-15 - added functions for bruxism analysis
 #     2022-04-22 - improved user interface
@@ -562,7 +563,7 @@ class GUI(QtWidgets.QMainWindow):
 
             self.recordingFile_TXT = open(self.recordingFileName_TXT, "a") # Data file creation
             self.recordingFile_TXT.write(datetime.now().strftime("Date: %Y.%m.%d\rTime: %H:%M:%S") + "\r\n") # Data file name
-            self.recordingFile_TXT.write("File format: \r\nsensor number | message number | battery charge | 119 data points \r\n") # Data file format
+            self.recordingFile_TXT.write("File format: \r\ntime in s | 4 sensors data in mkV \r\n") # Data file format
 
             
             self.recordingFile_BIN = open(self.recordingFileName_BIN, 'ab')
@@ -760,10 +761,9 @@ class GUI(QtWidgets.QMainWindow):
                 
                 if  self.IntegralSignalAction.isChecked(): self.pi[i].setData(y=self.DataIntegral[i], x=Time[i])
                 else: self.pi[i].clear()
-                
                     
-                # # Plot histogram
-                # self.pb[i].setOpts(height=2*self.DataEnvelope[i][-1])
+                # Plot histogram
+                self.pb[i].setOpts(height=2*self.DataEnvelope[i][-1])
                 
             if (self.dataRecordingAction.isChecked()):
                 for i in range(max(self.ms_len)):
@@ -774,9 +774,7 @@ class GUI(QtWidgets.QMainWindow):
                 self.p[i].clear()
                 self.pe[i].clear()
                 self.pi[i].clear()
-                self.pb[i].setOpts(height=0)
-            
-            self.ms_len = [0]*4        
+                self.pb[i].setOpts(height=0)    
             
             # Plot FFT data
             Y = np.zeros((4, 500))
@@ -796,6 +794,8 @@ class GUI(QtWidgets.QMainWindow):
 
     # Read data from File   
     def readFromFile(self): 
+        self.ms_len = [0]*4  
+        
         j = 0
         for j in range(10):
             j += 1
@@ -833,7 +833,7 @@ class GUI(QtWidgets.QMainWindow):
                 self.Data[sensorNum][self.l[sensorNum]]  = ((int(msg[i] | msg[i+1] << 8) - 8192)/16384.0*2.49)*2000
                 self.Time[sensorNum][self.l[sensorNum]] = self.Time[sensorNum][self.l[sensorNum] - 1] + self.dt[sensorNum]
                 self.l[sensorNum] = self.l[sensorNum] + 1
-                self.ms_len[sensorNum] += 1 
+                if (self.ms_len[sensorNum] < self.dataWidth): self.ms_len[sensorNum] += 1 
             
             if ((self.slider.value() != int(self.sliderpos/self.loadDataLen*100))):
                 self.sliderpos += int(self.slider.value()*self.loadDataLen/100 - self.sliderpos)
@@ -850,6 +850,7 @@ class GUI(QtWidgets.QMainWindow):
 
     # Read data from serial                  
     def readFromSerial(self): 
+        self.ms_len = [0]*4  
         
         msg = self.serialMonitor.serialRead() 
         TIME = time.perf_counter()
@@ -920,7 +921,7 @@ class GUI(QtWidgets.QMainWindow):
                                 self.Time[sensorNum][self.l[sensorNum]] = self.Time[sensorNum][self.dataWidth - 1] + self.dt[sensorNum]
 
                             self.l[sensorNum] += 1
-                            self.ms_len[sensorNum] += 1 
+                            if (self.ms_len[sensorNum] < self.dataWidth): self.ms_len[sensorNum] += 1 
                             
                         timeDifference = (TIME - self.TIMER) - self.Time[sensorNum][self.l[sensorNum]-1]
                         if timeDifference > 0.2:
