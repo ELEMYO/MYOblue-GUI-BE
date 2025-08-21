@@ -2,6 +2,8 @@
 # 2025-07-15 by ELEMYO (https://github.com/ELEMYO)
 # 
 # Changelog:
+#     2025-08-21 - modified .txt file format
+#     2025-08-13 - improved functions for bruxism analysis
 #     2025-08-13 - improved functions for bruxism analysis
 #     2025-08-11 - improved functions for bruxism analysis
 #     2025-07-15 - added functions for bruxism analysis
@@ -97,8 +99,7 @@ class GUI(QtWidgets.QMainWindow):
         self.sliderpos = 0 # Position of data slider 
         self.loadDataLen = 0 # Number of signal samples in data file
         self.loadData = 0 # Data from load file
-        self.startNum = 0 # Sensors message number associated with 0% data slider position
-        self.stopNum = 0 # Sensors message number associated with 100% data slider position
+        self.recordingFile_TXT_counter = 0
         
         self.FFT = np.zeros((4, 500)) # Fast Fourier transform data
         
@@ -475,6 +476,7 @@ class GUI(QtWidgets.QMainWindow):
             self.textWindow.insertPlainText(datetime.now().strftime("[%H:%M:%S] ") + "live from " + self.serialMonitor.COM +" \n")
             self.textWindow.verticalScrollBar().setValue(self.textWindow.verticalScrollBar().maximum()-2)
             self.COMports.setDisabled(True)
+            self.refreshAction.setDisabled(False)
 
         self.sensorsNumber.valueChanged.connect(self.setSensorsNumber)
         self.setSensorsNumber(2)
@@ -538,6 +540,7 @@ class GUI(QtWidgets.QMainWindow):
         self.slider.setValue(0)
         self.xRangeStart = 0
         self.TIMER = 0
+        self.recordingFile_TXT_counter = 0
         for i in range(4):
             self.NumberBE[i].setValue(0)
             self.NumberBE_PerTime[i].setValue(0)
@@ -555,7 +558,9 @@ class GUI(QtWidgets.QMainWindow):
     # Initialize recording data to a file
     def dataRecording(self):
         if (self.dataRecordingAction.isChecked()):
+            self.integrationInterval.setDisabled(True)
             self.sensorsNumber.setDisabled(True)
+            self.refreshAction.setDisabled(True)  
             self.recordingFileName_TXT = datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + ".txt"
             self.recordingFileName_BIN = datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + ".bin"
             self.textWindow.insertPlainText(datetime.now().strftime("[%H:%M:%S] ") + "recording to \"" + os.getcwd() +"\\" + self.recordingFileName_BIN + "\"\n")
@@ -563,11 +568,13 @@ class GUI(QtWidgets.QMainWindow):
 
             self.recordingFile_TXT = open(self.recordingFileName_TXT, "a") # Data file creation
             self.recordingFile_TXT.write(datetime.now().strftime("Date: %Y.%m.%d\rTime: %H:%M:%S") + "\r\n") # Data file name
-            self.recordingFile_TXT.write("File format: \r\ntime in s | 4 sensors data in mkV \r\n") # Data file format
-
+            self.recordingFile_TXT.write("File format: \r\nIntegrated data of 2 sensors in µV with a time step of " + str(round(self.integrationInterval.value(), 3)) + " seconds\r\n") # Data file format
             
             self.recordingFile_BIN = open(self.recordingFileName_BIN, 'ab')
         else:
+            if not self.PlaybackAction.isChecked():
+                self.refreshAction.setDisabled(False)
+            self.integrationInterval.setDisabled(False)
             self.recordingFile_TXT.close()
             self.recordingFile_BIN.close()
             self.sensorsNumber.setDisabled(False)
@@ -666,7 +673,8 @@ class GUI(QtWidgets.QMainWindow):
             self.envelopeSmoothingСoefficient.setDisabled(True)
             
         if self.IntegralSignalAction.isChecked():
-            self.integrationInterval.setDisabled(False)
+            if (not self.dataRecordingAction.isChecked()):
+                self.integrationInterval.setDisabled(False)
         else:
             self.integrationInterval.setDisabled(True)
         
@@ -767,8 +775,11 @@ class GUI(QtWidgets.QMainWindow):
                 
             if (self.dataRecordingAction.isChecked()):
                 for i in range(max(self.ms_len)):
-                    sensors_data = str(round(Time[0][self.dataWidth + i - int((1)*self.fs)], 3)) + ' ' +  str(round(Data[0][self.dataWidth + i - int((1)*self.fs)])) + ' ' + str(round(Data[1][self.dataWidth + i - int((1)*self.fs)])) + ' ' + str(round(Data[2][self.dataWidth + i - int((1)*self.fs)])) + ' ' + str(round(Data[3][self.dataWidth - int((1)*self.fs)])) +'\n'
-                    self.recordingFile_TXT.write(sensors_data)
+                    self.recordingFile_TXT_counter += 1
+                    if (self.recordingFile_TXT_counter >= int(self.integrationInterval.value()*1000/2)):
+                        sensors_data = str(round(self.DataIntegral[0][self.dataWidth + i - int((1)*self.fs)])) + ' ' + str(round(self.DataIntegral[1][self.dataWidth + i - int((1)*self.fs)])) +'\n'
+                        self.recordingFile_TXT.write(sensors_data)
+                        self.recordingFile_TXT_counter = 0
 
             for i in range( int(self.sensorsNumber.value()), 4):
                 self.p[i].clear()
